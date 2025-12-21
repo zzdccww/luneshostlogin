@@ -37,23 +37,32 @@ def send_telegram_message(bot_token, chat_id, message):
 
 
 @browser(
-    block_images=False,  # 加载图片（Cloudflare 可能需要）
-    headless=False,       # 无头模式（设为 False 可观察浏览器）
-    reuse_driver=False,  # 不重用浏览器实例
+    block_images=False,
+    headless=False,  # 始终使用有界面模式（CI 使用 Xvfb 虚拟显示）
+    reuse_driver=False,
+    add_arguments=[
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--window-size=1920,1080'
+    ]
 )
 def login_task(driver: Driver, data):
     """
     登录任务主函数
     """
     website_url = os.getenv('WEBSITE_URL')
-    username = os.getenv('login_USERNAME')
-    password = os.getenv('login_PASSWORD')
+    username = os.getenv('LOGIN_USERNAME')  # 改为 LOGIN_USERNAME
+    password = os.getenv('LOGIN_PASSWORD')  # 改为 LOGIN_PASSWORD
     telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
     telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
 
     # 验证必需的环境变量
     if not all([website_url, username, password]):
-        error_msg = "❌ 错误：缺少必需的环境变量（WEBSITE_URL, login_USERNAME, login_PASSWORD）"
+        error_msg = "❌ 错误：缺少必需的环境变量（WEBSITE_URL, LOGIN_USERNAME, LOGIN_PASSWORD）"
         print(error_msg)
         send_telegram_message(
             telegram_token, telegram_chat_id, f"*登录失败*\n{error_msg}")
