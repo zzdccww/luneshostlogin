@@ -49,15 +49,22 @@ jobs:
           libxdamage1 \
           libxfixes3 \
           libxrandr2 \
-          xdg-utils
+          xdg-utils \
+          xvfb
 
-    - name: Run Python login bot
+    - name: Run Python login bot with virtual display
       id: login-step
-      run: python login_bot.py
+      run: |
+        # 启动虚拟显示服务器
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        sleep 2
+        # 运行登录脚本（使用 headless=False）
+        python login_bot.py
       env:
         WEBSITE_URL: ${{ secrets.WEBSITE_URL }}
-        login_USERNAME: ${{ secrets.LOGIN_USERNAME }}
-        login_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        LOGIN_USERNAME: ${{ secrets.LOGIN_USERNAME }}
+        LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       continue-on-error: true
