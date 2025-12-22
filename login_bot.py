@@ -72,26 +72,30 @@ def login_task(driver: Driver, data):
         print("🌐 开始登录流程...")
         print(f"📍 目标网站: {website_url}")
 
-        # 打印环境信息（用于调试）
-        print("\n" + "="*50)
-        print("🔍 环境信息:")
-        print(
-            f"  - User Agent: {driver.execute_script('return navigator.userAgent')}")
-        print(
-            f"  - Platform: {driver.execute_script('return navigator.platform')}")
-        print(
-            f"  - Language: {driver.execute_script('return navigator.language')}")
-        print(
-            f"  - Screen: {driver.execute_script('return screen.width')}x{driver.execute_script('return screen.height')}")
-        print(
-            f"  - WebDriver: {driver.execute_script('return navigator.webdriver')}")
-        print("="*50 + "\n")
-
         # 步骤 1: 先访问 Google（建立真实的 Referer）
         print("🔍 通过 Google 搜索建立 Referer...")
         driver.google_get(
             "https://www.google.com/search?q=betadash+lunes+host")
         driver.sleep(2)  # 短暂停留
+
+        # 打印环境信息（用于调试）
+        try:
+            print("\n" + "="*50)
+            print("🔍 环境信息:")
+            print(
+                f"  - User Agent: {driver.execute_script('return navigator.userAgent')}")
+            print(
+                f"  - Platform: {driver.execute_script('return navigator.platform')}")
+            print(
+                f"  - Language: {driver.execute_script('return navigator.language')}")
+            print(
+                f"  - Screen: {driver.execute_script('return screen.width')}x{driver.execute_script('return screen.height')}")
+            print(
+                f"  - WebDriver: {driver.execute_script('return navigator.webdriver')}")
+            print("="*50 + "\n")
+        except Exception as e:
+            print(f"⚠️  无法获取环境信息: {e}")
+            print("="*50 + "\n")
 
         # 步骤 2: 访问登录页面并绕过 Cloudflare
         print("🚀 访问登录页面并绕过 Cloudflare...")
