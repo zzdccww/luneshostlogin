@@ -58,16 +58,7 @@ def send_telegram_message(bot_token, chat_id, message):
         '--disable-infobars',
         '--disable-notifications',
         '--disable-popup-blocking'
-    ],
-    add_experimental_options={
-        'excludeSwitches': ['enable-automation', 'enable-logging'],
-        'prefs': {
-            'credentials_enable_service': False,
-            'profile.password_manager_enabled': False,
-            'profile.default_content_setting_values.notifications': 2,
-            'intl.accept_languages': 'zh-CN,zh,en-US,en'
-        }
-    }
+    ]
 )
 def login_task(driver: Driver, data):
     """
