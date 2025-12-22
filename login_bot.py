@@ -40,7 +40,6 @@ def send_telegram_message(bot_token, chat_id, message):
     block_images=False,
     headless=False,  # 始终使用有界面模式（CI 使用 Xvfb 虚拟显示）
     reuse_driver=False,
-    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     add_arguments=[
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -48,16 +47,7 @@ def send_telegram_message(bot_token, chat_id, message):
         '--disable-gpu',
         '--disable-software-rasterizer',
         '--disable-extensions',
-        '--window-size=1920,1080',
-        '--lang=zh-CN,zh;q=0.9,en;q=0.8',
-        '--disable-blink-features=AutomationControlled',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--disable-web-security',
-        '--disable-site-isolation-trials',
-        '--ignore-certificate-errors',
-        '--disable-infobars',
-        '--disable-notifications',
-        '--disable-popup-blocking'
+        '--window-size=1920,1080'
     ]
 )
 def login_task(driver: Driver, data):
@@ -82,6 +72,21 @@ def login_task(driver: Driver, data):
         print("🌐 开始登录流程...")
         print(f"📍 目标网站: {website_url}")
 
+        # 打印环境信息（用于调试）
+        print("\n" + "="*50)
+        print("🔍 环境信息:")
+        print(
+            f"  - User Agent: {driver.execute_script('return navigator.userAgent')}")
+        print(
+            f"  - Platform: {driver.execute_script('return navigator.platform')}")
+        print(
+            f"  - Language: {driver.execute_script('return navigator.language')}")
+        print(
+            f"  - Screen: {driver.execute_script('return screen.width')}x{driver.execute_script('return screen.height')}")
+        print(
+            f"  - WebDriver: {driver.execute_script('return navigator.webdriver')}")
+        print("="*50 + "\n")
+
         # 步骤 1: 先访问 Google（建立真实的 Referer）
         print("🔍 通过 Google 搜索建立 Referer...")
         driver.google_get(
@@ -92,29 +97,9 @@ def login_task(driver: Driver, data):
         print("🚀 访问登录页面并绕过 Cloudflare...")
         driver.google_get(website_url, bypass_cloudflare=True)
 
-        # 注入 JavaScript 移除自动化检测标记
-        print("🔧 注入反检测脚本...")
-        try:
-            driver.execute_script("""
-                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-                Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh', 'en-US', 'en']});
-                window.chrome = {runtime: {}};
-            """)
-        except Exception as e:
-            print(f"⚠️  注入脚本失败: {e}，继续执行")
-
-        # 等待页面完全加载（CI 环境需要更长时间）
-        print("⏳ 等待页面加载和 Cloudflare 验证...")
-        driver.sleep(8)  # 增加等待时间，确保 Cloudflare 验证完成
-
-        # 额外等待：确保页面 DOM 完全加载
-        print("🔍 等待页面 DOM 准备就绪...")
-        try:
-            driver.execute_script("return document.readyState") == "complete"
-            driver.sleep(2)
-        except:
-            pass
+        # 等待页面完全加载
+        print("⏳ 等待页面加载...")
+        driver.sleep(3)
 
         # 检查是否成功加载登录页面
         current_url = driver.current_url
@@ -122,17 +107,42 @@ def login_task(driver: Driver, data):
         print(f"📄 当前页面: {page_title}")
         print(f"🔗 当前 URL: {current_url}")
 
-        # 检查是否仍然在 Cloudflare 验证页面
-        if 'cloudflare' in page_title.lower() or 'checking' in page_title.lower():
-            print("⚠️  检测到仍在 Cloudflare 验证页面，额外等待 10 秒...")
-            driver.sleep(10)
-            current_url = driver.current_url
-            page_title = driver.title
-            print(f"📄 再次检查页面: {page_title}")
-            print(f"🔗 再次检查 URL: {current_url}")
+        # 检查是否遇到 Cloudflare 挑战
+        page_source = driver.page_source
+        if 'cloudflare' in page_source.lower() or 'challenge' in page_source.lower():
+            print("⚠️  检测到可能的 Cloudflare 挑战页面")
+            print("⏳ 等待额外时间让 Cloudflare 验证...")
+            driver.sleep(5)
+
+            # 保存 HTML 用于调试
+            try:
+                output_dir = "output"
+                os.makedirs(output_dir, exist_ok=True)
+                html_path = os.path.join(output_dir, "cloudflare_page.html")
+                with open(html_path, 'w', encoding='utf-8') as f:
+                    f.write(page_source)
+                print(f"📄 Cloudflare 页面 HTML 已保存: {html_path}")
+            except Exception as e:
+                print(f"⚠️  保存 HTML 失败: {e}")
+
+        # 再次检查当前状态
+        current_url = driver.current_url
+        page_title = driver.title
+        print(f"📄 验证后页面: {page_title}")
+        print(f"🔗 验证后 URL: {current_url}")
 
         # 步骤 3: 查找并填写登录表单
         print("📝 填写登录信息...")
+
+        # 保存登录页面截图（调试用）
+        try:
+            output_dir = "output"
+            os.makedirs(output_dir, exist_ok=True)
+            screenshot_path = os.path.join(output_dir, "login_page.png")
+            driver.save_screenshot(screenshot_path)
+            print(f"📸 登录页面截图已保存: {screenshot_path}")
+        except Exception as e:
+            print(f"⚠️  截图保存失败: {e}")
 
         # 输入邮箱
         email_input = driver.select("#email", wait=10)
@@ -159,9 +169,9 @@ def login_task(driver: Driver, data):
 
         submit_button.click()
 
-        # 等待页面跳转（CI 环境需要更长时间）
+        # 等待页面跳转（增加等待时间）
         print("⏳ 等待登录结果...")
-        driver.sleep(15)  # CI 环境增加到 15 秒
+        driver.sleep(10)  # 从5秒增加到10秒
 
         # 步骤 5: 验证登录状态
         final_url = driver.current_url
