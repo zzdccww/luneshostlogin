@@ -51,7 +51,6 @@ jobs:
           libxrandr2 \
           libxss1 \
           libxtst6 \
-          libasound2 \
           libpangocairo-1.0-0 \
           xdg-utils \
           xvfb
