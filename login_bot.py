@@ -210,7 +210,11 @@ def login_task(driver: Driver, data):
         else:
             # 登录失败，截图
             screenshot_path = "login_failure_bot.png"
-            driver.save_screenshot(screenshot_path)
+            try:
+                driver.save_screenshot(screenshot_path)
+                print(f"📸 失败截图已保存: {screenshot_path}")
+            except Exception as e:
+                print(f"⚠️  截图保存失败: {e}")
 
             error_msg = f"""*❌ 登录失败*
 
@@ -241,8 +245,8 @@ def login_task(driver: Driver, data):
             screenshot_path = "login_error_bot.png"
             driver.save_screenshot(screenshot_path)
             print(f"📸 错误截图已保存: {screenshot_path}")
-        except:
-            pass
+        except Exception as screenshot_error:
+            print(f"⚠️  截图保存失败: {screenshot_error}")
 
         send_telegram_message(telegram_token, telegram_chat_id, error_msg)
 
