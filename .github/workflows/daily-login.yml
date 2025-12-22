@@ -75,6 +75,7 @@ jobs:
         path: |
           login_failure_bot.png
           login_error_bot.png
+          output/screenshots/*.png
         retention-days: 7
         if-no-files-found: ignore
 
