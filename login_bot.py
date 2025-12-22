@@ -120,9 +120,9 @@ def login_task(driver: Driver, data):
 
         submit_button.click()
 
-        # 等待页面跳转
+        # 等待页面跳转（增加等待时间）
         print("⏳ 等待登录结果...")
-        driver.sleep(5)
+        driver.sleep(10)  # 从5秒增加到10秒
 
         # 步骤 5: 验证登录状态
         final_url = driver.current_url
@@ -131,8 +131,27 @@ def login_task(driver: Driver, data):
         print(f"📄 登录后页面: {final_title}")
         print(f"🔗 登录后 URL: {final_url}")
 
-        # 判断登录是否成功（URL 不再是 /login 且标题不包含 Login）
-        if '/login' not in final_url.lower() and 'login' not in final_title.lower():
+        # 改进的判断逻辑：检查是否离开登录页面或者 URL 改变了
+        login_success = False
+
+        # 方法1: URL 不包含 /login
+        if '/login' not in final_url.lower():
+            login_success = True
+            print("✅ 检测到 URL 已改变，登录成功")
+        # 方法2: 标题不包含 Login
+        elif 'login' not in final_title.lower():
+            login_success = True
+            print("✅ 检测到标题已改变，登录成功")
+        # 方法3: 能找到服务器卡片（说明在主页）
+        else:
+            print("🔍 检查是否能找到服务器卡片...")
+            test_card = driver.select("a.server-card", wait=3)
+            if test_card:
+                login_success = True
+                print("✅ 找到服务器卡片，登录成功")
+
+        # 判断登录是否成功
+        if login_success:
             print("🎉 登录成功！")
 
             # === 点击服务器卡片以保持账户活跃 ===
