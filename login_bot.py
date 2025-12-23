@@ -78,25 +78,6 @@ def login_task(driver: Driver, data):
             "https://www.google.com/search?q=betadash+lunes+host")
         driver.sleep(2)  # 短暂停留
 
-        # 打印环境信息（用于调试）
-        try:
-            print("\n" + "="*50)
-            print("🔍 环境信息:")
-            print(
-                f"  - User Agent: {driver.execute_script('return navigator.userAgent')}")
-            print(
-                f"  - Platform: {driver.execute_script('return navigator.platform')}")
-            print(
-                f"  - Language: {driver.execute_script('return navigator.language')}")
-            print(
-                f"  - Screen: {driver.execute_script('return screen.width')}x{driver.execute_script('return screen.height')}")
-            print(
-                f"  - WebDriver: {driver.execute_script('return navigator.webdriver')}")
-            print("="*50 + "\n")
-        except Exception as e:
-            print(f"⚠️  无法获取环境信息: {e}")
-            print("="*50 + "\n")
-
         # 步骤 2: 访问登录页面并绕过 Cloudflare
         print("🚀 访问登录页面并绕过 Cloudflare...")
         driver.google_get(website_url, bypass_cloudflare=True)
@@ -111,42 +92,8 @@ def login_task(driver: Driver, data):
         print(f"📄 当前页面: {page_title}")
         print(f"🔗 当前 URL: {current_url}")
 
-        # 检查是否遇到 Cloudflare 挑战
-        page_source = driver.page_source
-        if 'cloudflare' in page_source.lower() or 'challenge' in page_source.lower():
-            print("⚠️  检测到可能的 Cloudflare 挑战页面")
-            print("⏳ 等待额外时间让 Cloudflare 验证...")
-            driver.sleep(5)
-
-            # 保存 HTML 用于调试
-            try:
-                output_dir = "output"
-                os.makedirs(output_dir, exist_ok=True)
-                html_path = os.path.join(output_dir, "cloudflare_page.html")
-                with open(html_path, 'w', encoding='utf-8') as f:
-                    f.write(page_source)
-                print(f"📄 Cloudflare 页面 HTML 已保存: {html_path}")
-            except Exception as e:
-                print(f"⚠️  保存 HTML 失败: {e}")
-
-        # 再次检查当前状态
-        current_url = driver.current_url
-        page_title = driver.title
-        print(f"📄 验证后页面: {page_title}")
-        print(f"🔗 验证后 URL: {current_url}")
-
         # 步骤 3: 查找并填写登录表单
         print("📝 填写登录信息...")
-
-        # 保存登录页面截图（调试用）
-        try:
-            output_dir = "output"
-            os.makedirs(output_dir, exist_ok=True)
-            screenshot_path = os.path.join(output_dir, "login_page.png")
-            driver.save_screenshot(screenshot_path)
-            print(f"📸 登录页面截图已保存: {screenshot_path}")
-        except Exception as e:
-            print(f"⚠️  截图保存失败: {e}")
 
         # 输入邮箱
         email_input = driver.select("#email", wait=10)
