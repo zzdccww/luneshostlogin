@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Luneshost 自动登录脚本 - 使用 Botasaurus 绕过 Cloudflare
+支持 Cookie 复用以绕过 reCAPTCHA
 """
 
 import os
 import sys
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 from botasaurus.browser import browser, Driver
@@ -47,26 +49,130 @@ def send_telegram_message(bot_token, chat_id, message):
         '--disable-gpu',
         '--disable-software-rasterizer',
         '--disable-extensions',
+        '--disable-blink-features=AutomationControlled',  # 隐藏自动化特征
         '--window-size=1920,1080'
     ]
 )
 def login_task(driver: Driver, data):
     """
-    登录任务主函数
+    登录任务主函数 - 支持 Cookie 复用
     """
     website_url = os.getenv('WEBSITE_URL')
-    username = os.getenv('LOGIN_USERNAME')  # 改为 LOGIN_USERNAME
-    password = os.getenv('LOGIN_PASSWORD')  # 改为 LOGIN_PASSWORD
+    username = os.getenv('LOGIN_USERNAME')
+    password = os.getenv('LOGIN_PASSWORD')
     telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
     telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
+    saved_cookies = os.getenv('SAVED_COOKIES')  # Cookie 复用
 
     # 验证必需的环境变量
     if not all([website_url, username, password]):
         error_msg = "❌ 错误：缺少必需的环境变量（WEBSITE_URL, LOGIN_USERNAME, LOGIN_PASSWORD）"
         print(error_msg)
         send_telegram_message(
-            telegram_token, telegram_chat_id, f"*登录失败*\n{error_msg}")
+            telegram_token, telegram_chat_id, f"*登录失败*\\n{error_msg}")
         return {"success": False, "error": "Missing environment variables"}
+
+    # ========== Cookie 复用登录 ==========
+    if saved_cookies:
+        try:
+            print("🍪 检测到已保存的 Cookie，尝试免登录...")
+
+            # 先访问网站
+            driver.get(website_url)
+            driver.sleep(2)
+
+            # 加载 Cookie
+            cookies = json.loads(saved_cookies)
+            print(f"📦 正在加载 {len(cookies)} 个 Cookie...")
+
+            cookie_loaded = 0
+            for cookie in cookies:
+                try:
+                    driver.add_cookie(cookie)
+                    cookie_loaded += 1
+                except:
+                    pass
+
+            print(f"✅ 成功加载 {cookie_loaded} 个 Cookie")
+            print("🔄 刷新页面...")
+            driver.refresh()
+            driver.sleep(5)
+
+            # 检查是否已登录
+            current_url = driver.current_url
+            current_title = driver.title
+
+            print(f"📄 当前页面: {current_title}")
+            print(f"🔗 当前 URL: {current_url}")
+
+            if '/login' not in current_url.lower():
+                print("🎉 使用 Cookie 免登录成功！")
+
+                # 尝试访问服务器控制台
+                try:
+                    print("🖱️  查找服务器卡片...")
+                    server_card = driver.select("a.server-card", wait=10)
+
+                    if server_card:
+                        server_title_elem = driver.select(
+                            ".server-title", wait=2)
+                        server_title = server_title_elem.text if server_title_elem else "未知"
+
+                        print(f"✅ 找到服务器: {server_title}")
+                        server_card.click()
+                        driver.sleep(3)
+
+                        final_url = driver.current_url
+                        final_title = driver.title
+
+                        print(f"✅ 已访问服务器控制台")
+                        print(f"📄 服务器页面: {final_title}")
+                        print(f"🔗 服务器 URL: {final_url}")
+
+                        success_msg = f"""*✅ Cookie 免登录成功！*
+
+📅 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+🔗 当前页面: {final_url}
+📄 标题: {final_title}
+✨ 已访问服务器控制台，账户保持活跃
+🍪 使用 Cookie 复用，无需登录验证
+"""
+                        send_telegram_message(
+                            telegram_token, telegram_chat_id, success_msg)
+
+                        return {
+                            "success": True,
+                            "url": final_url,
+                            "title": final_title,
+                            "method": "cookie"
+                        }
+                except Exception as e:
+                    print(f"⚠️  访问服务器时出错: {e}")
+
+                # 即使没访问到服务器，登录也成功了
+                success_msg = f"""*✅ Cookie 免登录成功！*
+
+📅 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+🔗 当前页面: {current_url}
+📄 标题: {current_title}
+🍪 使用 Cookie 复用，无需登录验证
+"""
+                send_telegram_message(
+                    telegram_token, telegram_chat_id, success_msg)
+
+                return {
+                    "success": True,
+                    "url": current_url,
+                    "title": current_title,
+                    "method": "cookie"
+                }
+            else:
+                print("⚠️  Cookie 已失效，将进行正常登录...")
+                print("💡 提示：请运行 `python export_cookies.py` 更新 Cookie")
+        except Exception as e:
+            print(f"⚠️  Cookie 登录失败: {e}")
+            print("🔄 将进行正常登录...")
+    # ========== Cookie 复用登录结束 ==========
 
     try:
         print("🌐 开始登录流程...")
@@ -120,9 +226,9 @@ def login_task(driver: Driver, data):
 
         submit_button.click()
 
-        # 等待页面跳转（增加等待时间）
-        print("⏳ 等待登录结果...")
-        driver.sleep(10)  # 从5秒增加到10秒
+        # 等待页面跳转（增加等待时间给 reCAPTCHA）
+        print("⏳ 等待登录结果（包括 reCAPTCHA 验证）...")
+        driver.sleep(15)  # 给 reCAPTCHA 更多时间
 
         # 步骤 5: 验证登录状态
         final_url = driver.current_url
@@ -221,7 +327,7 @@ def login_task(driver: Driver, data):
 📅 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 🔗 当前 URL: {final_url}
 📄 标题: {final_title}
-💡 提示: 请检查用户名和密码是否正确
+💡 提示: 可能是 reCAPTCHA 验证失败，请尝试更新 Cookie
 """
             print("❌ 登录失败：仍停留在登录页面")
             send_telegram_message(telegram_token, telegram_chat_id, error_msg)
@@ -269,7 +375,10 @@ if __name__ == "__main__":
     print("=" * 50)
     if result and result.get('success'):
         print("✅ 脚本执行完成 - 登录成功")
+        if result.get('method') == 'cookie':
+            print("🍪 使用 Cookie 复用，无需登录验证")
         sys.exit(0)
     else:
         print("❌ 脚本执行完成 - 登录失败")
+        print("💡 提示：运行 `python export_cookies.py` 导出新 Cookie")
         sys.exit(1)
